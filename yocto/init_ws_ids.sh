@@ -52,6 +52,9 @@ if [ "${DEVELOPMENT_BUILD}" == "n" ]; then
 	sed -i "s|##DEVELOPMENT_BUILD##|n|g" ${BUILD_DIR}/conf/local.conf
 else
 	sed -i "s|##DEVELOPMENT_BUILD##|y|g" ${BUILD_DIR}/conf/local.conf
+	if [ -n "${UPSTREAM_VERSION}" ]; then
+		UPSTREAM_VERSION="${UPSTREAM_VERSION} DEV Build"
+	fi
 fi
 
 if [ "${CC_MODE}" == "y" ]; then
@@ -60,25 +63,48 @@ else
 	sed -i "s|##CC_MODE##|n|g" ${BUILD_DIR}/conf/local.conf
 fi
 
-sed -i "s|##TRUSTME_HARDWARE##|${ARCH}|g" ${BUILD_DIR}/conf/local.conf
-sed -i "s|##MACHINE##|${DEVICE}|g" ${BUILD_DIR}/conf/local.conf
-sed -i "s|##TRUSTME_HARDWARE##|${ARCH}|g" ${BUILD_DIR}/conf/bblayers.conf
-sed -i "s|##MACHINE##|${DEVICE}|g" ${BUILD_DIR}/conf/bblayers.conf
+sed -i "s|##UPSTREAM_VERSION##|${UPSTREAM_VERSION}|g" ${BUILD_DIR}/conf/local.conf
 
-if [ "${ENABLE_SCHSM}" = "1" ]; then
-	echo "Enabling sc-hsm support"
-	sed -i 's/##TRUSTME_SCHSM##/y/' ${BUILD_DIR}/conf/local.conf
+if ! grep -q '##TRUSTME_HARDWARE##' ${BUILD_DIR}/conf/local.conf;then
+	sed -i "s|##TRUSTME_HARDWARE##|${ARCH}|g" ${BUILD_DIR}/conf/local.conf
+	sed -i "s|##MACHINE##|${DEVICE}|g" ${BUILD_DIR}/conf/local.conf
+	sed -i "s|##TRUSTME_HARDWARE##|${ARCH}|g" ${BUILD_DIR}/conf/bblayers.conf
+	sed -i "s|##MACHINE##|${DEVICE}|g" ${BUILD_DIR}/conf/bblayers.conf
+
+	if [ "${ENABLE_SCHSM}" = "1" ]; then
+		echo "Enabling sc-hsm support"
+		sed -i 's/##TRUSTME_SCHSM##/y/' ${BUILD_DIR}/conf/local.conf
+	else
+		echo "Not enabling sc-hsm support"
+		sed -i 's/##TRUSTME_SCHSM##/n/' ${BUILD_DIR}/conf/local.conf
+	fi
+	if [ "${ENABLE_BNSE}" = "1" ]; then
+		echo "Enabling bnse support"
+		sed -i 's/##TRUSTME_BNSE##/y/' ${BUILD_DIR}/conf/local.conf
+	else
+		echo "Not enabling bnse support"
+		sed -i 's/##TRUSTME_BNSE##/n/' ${BUILD_DIR}/conf/local.conf
+	fi
+
+	if [ "${TRUSTME_SANITIZERS}" = "1" ]; then
+	       echo "Enabling sanitizers for cmld"
+	       sed -i 's/##TRUSTME_SANITIZERS##/y/' ${BUILD_DIR}/conf/local.conf
+	else
+	       echo "Not enabling sanitizers for cmld"
+	       sed -i 's/##TRUSTME_SANITIZERS##/n/' ${BUILD_DIR}/conf/local.conf
+	fi
+
+	if [ "${TRUSTME_PLAIN_DATAPART}" = "1" ]; then
+	       echo "Enabling plain data partition for cmld"
+	       sed -i 's/##TRUSTME_PLAIN_DATAPART##/y/' ${BUILD_DIR}/conf/local.conf
+	else
+	       echo "Not enabling plain data partition for cmld"
+	       sed -i 's/##TRUSTME_PLAIN_DATAPART##/n/' ${BUILD_DIR}/conf/local.conf
+	fi
+
 else
-	sed -i 's/##TRUSTME_SCHSM##/n/' ${BUILD_DIR}/conf/local.conf
+	echo "local.conf already initialized, skipping configuration"
 fi
-
-if [ ${SKIP_CONFIG} != 1 ]; then
-	echo "KERNEL_MODULE_SIG_KEY=\"${BUILD_DIR}/test_certificates/certs/signing_key.pem\"" >>  ${BUILD_DIR}/conf/local.conf
-	echo "KERNEL_SYSTEM_TRUSTED_KEYS=\"${BUILD_DIR}/test_certificates/ssig_rootca.cert\"" >>  ${BUILD_DIR}/conf/local.conf
-
-	sed -i "s/# random string to ignore SSTATE_MIRROR/# random string to ignore SSTATE_MIRROR: $(date +%s | sha1sum | awk '{print $1}')/" "${SRC_DIR}/meta-trustx/recipes-trustx/userdata/pki-native.bb"
-fi
-
 
 echo ""
 echo "--------------------------------------------"
